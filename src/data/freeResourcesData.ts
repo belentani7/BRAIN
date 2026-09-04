@@ -1,0 +1,243 @@
+import { FreeApiLlm, FreeDataBank } from '../types';
+
+export const FREE_API_LLMS: FreeApiLlm[] = [
+  {
+    id: 'llm-01',
+    provider: 'Google AI Studio (Gemini)',
+    models: ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-embedding-2-preview'],
+    limits: '15 RPM · 1,000,000 TPM · 1,500 RPD (Free Tier)',
+    freeTierDetails: '100% Gratuito en capa free tier para desarrollo. No requiere tarjeta de crédito para el tier estándar.',
+    rpm: '15 RPM / 1,500 RPD',
+    contextWindow: '1,000,000 tokens',
+    requiresCreditCard: false,
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta',
+    sdkOrCurl: `curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=$GEMINI_API_KEY" \\
+  -H 'Content-Type: application/json' \\
+  -d '{"contents": [{"parts": [{"text": "Explain HTN Planning"}]}]}'`,
+    bestFor: 'Razonamiento complejo, comprensión de código multimodal, ventanas de contexto de 1M tokens.',
+  },
+  {
+    id: 'llm-02',
+    provider: 'Groq Cloud (LPU Inference)',
+    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'],
+    limits: '30 RPM · 14,400 RPD · 6,000 TPM (Llama 3.3)',
+    freeTierDetails: 'Inferencia a velocidad ultra-alta (~300-800 tokens/segundo) con hardware LPU sin costo en capa developer.',
+    rpm: '30 RPM / 14,400 RPD',
+    contextWindow: '128,000 tokens (Llama 3.3)',
+    requiresCreditCard: false,
+    endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+    sdkOrCurl: `curl https://api.groq.com/openai/v1/chat/completions \\
+  -H "Authorization: Bearer $GROQ_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": "Hola"}]}'`,
+    bestFor: 'Agentes de respuesta ultra-rápida, sub-rutinas en tiempo real, routers de baja latencia.',
+  },
+  {
+    id: 'llm-03',
+    provider: 'OpenRouter (Free Tier Endpoint)',
+    models: ['deepseek/deepseek-r1:free', 'meta-llama/llama-3.3-70b-instruct:free', 'google/gemini-2.0-flash-exp:free', 'qwen/qwen-2.5-coder-32b-instruct:free'],
+    limits: '20 RPM · 200 RPD en modelos :free',
+    freeTierDetails: 'Acceso gratuito a modelos punteros de código abierto (DeepSeek R1, Qwen Coder, Llama) etiquetados con sufijo :free.',
+    rpm: '20 RPM',
+    contextWindow: 'Hasta 64k-128k según modelo',
+    requiresCreditCard: false,
+    endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+    sdkOrCurl: `curl https://openrouter.ai/api/v1/chat/completions \\
+  -H "Authorization: Bearer $OPENROUTER_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model": "deepseek/deepseek-r1:free", "messages": [{"role": "user", "content": "Refactoriza este bucle"}]}'`,
+    bestFor: 'Razonamiento Chain-of-Thought profundo (DeepSeek R1) y generación de código (Qwen Coder) sin costo.',
+  },
+  {
+    id: 'llm-04',
+    provider: 'Cerebras Inference',
+    models: ['llama3.1-8b', 'llama3.1-70b', 'llama3.3-70b'],
+    limits: '30 RPM · 60,000 TPM · 1,000,000 tokens/día',
+    freeTierDetails: 'Arquitectura Wafer-Scale Engine con velocidades récord (>1,800 tokens/s en 8B y >450 tokens/s en 70B).',
+    rpm: '30 RPM',
+    contextWindow: '8,192 tokens',
+    requiresCreditCard: false,
+    endpoint: 'https://api.cerebras.ai/v1/chat/completions',
+    sdkOrCurl: `curl https://api.cerebras.ai/v1/chat/completions \\
+  -H "Authorization: Bearer $CEREBRAS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model": "llama3.1-70b", "messages": [{"role": "user", "content": "Genera tests unitarios"}]}'`,
+    bestFor: 'Generación instantánea de código, pipelines de síntesis de texto a velocidad de streaming puro.',
+  },
+  {
+    id: 'llm-05',
+    provider: 'Hugging Face Serverless Inference API',
+    models: ['Qwen/Qwen2.5-Coder-32B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3', 'BAAI/bge-large-en-v1.5 (Embeddings)'],
+    limits: 'Generosa cuota por IP/Token comunitario (~1,000 requests/hora)',
+    freeTierDetails: 'Servidor serverless que carga miles de modelos open-source bajo demanda. Ideal para embeddings y NER.',
+    rpm: '~30-60 RPM',
+    contextWindow: 'Hasta 32,768 tokens',
+    requiresCreditCard: false,
+    endpoint: 'https://api-inference.huggingface.co/models/',
+    sdkOrCurl: `curl https://api-inference.huggingface.co/models/Qwen/Qwen2.5-Coder-32B-Instruct \\
+  -H "Authorization: Bearer $HF_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"inputs": "def fibonacci(n):"}'`,
+    bestFor: 'Cálculo de embeddings vectoriales (BGE/E5), clasificación de entidades nombradas (PII) y modelos de nicho.',
+  },
+  {
+    id: 'llm-06',
+    provider: 'Cloudflare Workers AI',
+    models: ['@cf/meta/llama-3.3-70b-instruct', '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b', '@cf/baai/bge-base-en-v1.5'],
+    limits: '10,000 Neurons/día gratis (equivale a ~100k-200k tokens diarios)',
+    freeTierDetails: 'Ejecución serverless en edge global distribuido (300+ centros de datos). Renovación diaria automática.',
+    rpm: 'Hasta 10,000 Neurons/día',
+    contextWindow: '128,000 tokens',
+    requiresCreditCard: false,
+    endpoint: 'https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/',
+    sdkOrCurl: `curl https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/ai/run/@cf/meta/llama-3.3-70b-instruct \\
+  -H "Authorization: Bearer $CF_API_TOKEN" \\
+  -d '{"prompt": "Resume esta función"}'`,
+    bestFor: 'Microservicios edge integrados con Cloudflare Workers y D1, sin servidor central.',
+  },
+  {
+    id: 'llm-07',
+    provider: 'GitHub Models (Azure AI Sandbox)',
+    models: ['gpt-4o', 'gpt-4o-mini', 'Phi-3.5-mini-instruct', 'Mistral-Large-2407', 'Llama-3.3-70B-Instruct'],
+    limits: '15 RPM · 150 RPD · 8,000 TPM (por token personal de GitHub)',
+    freeTierDetails: 'Disponible directamente con tu token de GitHub (PAT) para pruebas y prototipado sin coste.',
+    rpm: '15 RPM / 150 RPD',
+    contextWindow: 'Hasta 128k según modelo',
+    requiresCreditCard: false,
+    endpoint: 'https://models.inference.ai.azure.com/chat/completions',
+    sdkOrCurl: `curl https://models.inference.ai.azure.com/chat/completions \\
+  -H "Authorization: Bearer $GITHUB_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "Analiza este bug"}]}'`,
+    bestFor: 'Pruebas rápidas de modelos líderes (GPT-4o, Mistral Large) usando únicamente la cuenta de GitHub existente.',
+  },
+  {
+    id: 'llm-08',
+    provider: 'SambaNova Systems Cloud',
+    models: ['Meta-Llama-3.1-405B-Instruct', 'Meta-Llama-3.3-70B-Instruct', 'Qwen2.5-72B-Instruct'],
+    limits: '20 RPM · Velocidad >200 tokens/s en el modelo colosal 405B',
+    freeTierDetails: 'Acceso libre al modelo más grande open-source (Llama 3.1 405B) con chips de aceleración SN40L.',
+    rpm: '20 RPM',
+    contextWindow: '64,000 tokens',
+    requiresCreditCard: false,
+    endpoint: 'https://api.sambanova.ai/v1/chat/completions',
+    sdkOrCurl: `curl https://api.sambanova.ai/v1/chat/completions \\
+  -H "Authorization: Bearer $SAMBANOVA_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model": "Meta-Llama-3.1-405B-Instruct", "messages": [{"role": "user", "content": "Arquitectura de base de datos distribuida"}]}'`,
+    bestFor: 'Evaluación y razonamiento supremo utilizando el modelo Llama 405B sin infraestructura local.',
+  },
+];
+
+export const FREE_DATA_BANKS: FreeDataBank[] = [
+  {
+    id: 'db-01',
+    name: 'Hugging Face Datasets Hub',
+    category: 'NLP & Datasets',
+    recordsCount: '+250,000 Datasets públicos',
+    license: 'Apache 2.0 / MIT / CC-BY (según dataset)',
+    format: 'Parquet, JSON Lines, Arrow, CSV',
+    url: 'https://huggingface.co/datasets',
+    description: 'La mayor biblioteca abierta de datos para IA: corpus de código, pares de instrucción, embeddings y diálogos.',
+    agentUseCases: 'Fine-tuning, evaluación de benchmarks, inyección de memoria semántica y RAG masivo.',
+  },
+  {
+    id: 'db-02',
+    name: 'The Stack v2 (Software Heritage & BigCode)',
+    category: 'Código & Software',
+    recordsCount: '3B+ archivos de código en 600+ lenguajes',
+    license: 'Permissive Open Source Licenses',
+    format: 'Parquet / Git blobs con metadata',
+    url: 'https://huggingface.co/datasets/bigcode/the-stack-v2',
+    description: 'El mayor banco de código fuente con procedencia verificada y permisos explícitos de desarrolladores.',
+    agentUseCases: 'Entrenamiento y calibración de agentes de código, análisis de patrones sintácticos, refactorización AST.',
+  },
+  {
+    id: 'db-03',
+    name: 'GH Archive (GitHub Public Timeline)',
+    category: 'Código & Software',
+    recordsCount: '+5B eventos de GitHub grabados desde 2011',
+    license: 'Open Data Commons Public Domain Dedication (PDDL)',
+    format: 'JSON comprimido por hora (.json.gz) / Google BigQuery',
+    url: 'https://www.gharchive.org',
+    description: 'Registro histórico en tiempo real de todos los commits, push, PRs, issues y forks ocurridos en GitHub.',
+    agentUseCases: 'Indexación de actividad de repositorios, minería de dependencias, descubrimiento de tendencias de código.',
+  },
+  {
+    id: 'db-04',
+    name: 'OpenAlex (Knowledge Graph Académico)',
+    category: 'Ciencia & Papers',
+    recordsCount: '+250 Millones de artículos científicos y patentes',
+    license: 'CC0 (Dominio Público Universal)',
+    format: 'REST API, dumps JSON en AWS S3',
+    url: 'https://openalex.org',
+    description: 'Grafo de conocimiento científico global que mapea autores, instituciones, citas, conceptos y fuentes.',
+    agentUseCases: 'Verificación de afirmaciones científicas, agentes de investigación bibliográfica y revisión de literatura.',
+  },
+  {
+    id: 'db-05',
+    name: 'arXiv Open Access Metadata & Bulk PDFs',
+    category: 'Ciencia & Papers',
+    recordsCount: '+2.4 Millones de preprints de IA, física y matemáticas',
+    license: 'Open Access / Creative Commons',
+    format: 'OAI-PMH XML API, Kaggle Dataset, S3 Requester Pays',
+    url: 'https://arxiv.org',
+    description: 'El repositorio por excelencia de investigación de vanguardia en Machine Learning, LLMs y computación.',
+    agentUseCases: 'Extracción de papers de arquitecturas agénticas recientes, chunking de fórmulas y algoritmos.',
+  },
+  {
+    id: 'db-06',
+    name: 'Common Crawl',
+    category: 'Web & Archivos',
+    recordsCount: '+250 Billones de páginas web históricas (petabytes)',
+    license: 'Términos de uso abiertos / Libre acceso en AWS Public Datasets',
+    format: 'WARC (Web ARChive), WET (texto plano extraído)',
+    url: 'https://commoncrawl.org',
+    description: 'Copia periódica de la web abierta accesible libremente desde hace más de 12 años.',
+    agentUseCases: 'Búsqueda web sin live-scraping, análisis de frecuencias léxicas, corpus de lenguaje multiidioma.',
+  },
+  {
+    id: 'db-07',
+    name: 'Kaggle Datasets Hub',
+    category: 'NLP & Datasets',
+    recordsCount: '+180,000 Datasets estructurados',
+    license: 'Diversas licencias abiertas (CC-BY, Apache, ODC)',
+    format: 'CSV, SQLite, JSON, Parquet',
+    url: 'https://www.kaggle.com/datasets',
+    description: 'Datos tabulares, transaccionales, demográficos, médicos y de finanzas con documentación comunitaria.',
+    agentUseCases: 'Modelado financiero, simulaciones fiscales, benchmarking de algoritmos de clasificación.',
+  },
+  {
+    id: 'db-08',
+    name: 'Portal de Datos Abiertos de la Unión Europea (data.europa.eu)',
+    category: 'Datos Públicos & Gov',
+    recordsCount: '+1.7 Millones de conjuntos de datos públicos',
+    license: 'Directiva UE de Datos Abiertos (Open Data)',
+    format: 'JSON-LD, RDF, CSV, XML',
+    url: 'https://data.europa.eu',
+    description: 'Datos oficiales de las instituciones y estados miembros de la UE sobre leyes, economía, geografía y trabajo.',
+    agentUseCases: 'Cumplimiento normativo GDPR/AI Act, cálculos de normativas laborales (CLT/España), estadísticas socioeconómicas.',
+  },
+  {
+    id: 'db-09',
+    name: 'Wikidata & DBPedia Knowledge Base',
+    category: 'NLP & Datasets',
+    recordsCount: '+110 Millones de entidades estructuradas',
+    license: 'CC0 (Wikidata) / CC-BY-SA (DBpedia)',
+    format: 'SPARQL Endpoint, JSON dumps, RDF Triples',
+    url: 'https://www.wikidata.org',
+    description: 'La base de conocimiento ontológica más interconectada del mundo, legible por máquinas y agentes.',
+    agentUseCases: 'Grounding ontológico de entidades, validación de grafos de conocimiento, desambiguación semántica.',
+  },
+  {
+    id: 'db-10',
+    name: 'Semantic Scholar Academic Graph (S2AG)',
+    category: 'Ciencia & Papers',
+    recordsCount: '+215 Millones de papers con resúmenes semánticos y grafos de citas',
+    license: 'Open Data / API Key Gratuita',
+    format: 'REST API, Dumps JSON Lines',
+    url: 'https://www.semanticscholar.org/product/api',
+    description: 'API impulsada por el Allen Institute for AI con análisis de influencia de citas y TLDRs generados por IA.',
+    agentUseCases: 'Rutas de lectura de papers, identificación de estado del arte en orquestación de agentes.',
+  },
+];

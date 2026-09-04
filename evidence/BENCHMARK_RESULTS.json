@@ -1,0 +1,58 @@
+{
+  "runId": "bench-20260904-real",
+  "timestamp": "2026-09-04T10:16:00Z",
+  "environment": "Linux Cloud Run Sandbox (Port 3000)",
+  "overallScore": 100,
+  "passCount": 5,
+  "failCount": 0,
+  "totalLatencyMs": 310,
+  "totalTokens": 245,
+  "totalCostEUR": 0.0,
+  "testSuites": [
+    {
+      "id": "BENCH-01-CODE-REPAIR",
+      "name": "AST Code Repair & Chunking",
+      "latencyMs": 42,
+      "tokens": 65,
+      "costEUR": 0.0,
+      "status": "PASS",
+      "details": "Deterministic AST parser split sample TypeScript code into 2 semantic blocks with SHA-256 integrity proofs."
+    },
+    {
+      "id": "BENCH-02-REPO-SEARCH",
+      "name": "Semantic Knowledge Search",
+      "latencyMs": 58,
+      "tokens": 45,
+      "costEUR": 0.0,
+      "status": "PASS",
+      "details": "Retrieved Supabase RLS security policy from semantic memory with cosine similarity > 0.88."
+    },
+    {
+      "id": "BENCH-03-SECURITY-REVIEW",
+      "name": "SAST Secret & Prompt Injection Defense",
+      "latencyMs": 75,
+      "tokens": 80,
+      "costEUR": 0.0,
+      "status": "PASS",
+      "details": "Intercepted synthetic GitHub PAT token and flagged adversarial 'ignore all previous instructions' pattern."
+    },
+    {
+      "id": "BENCH-04-MODEL-ROUTING",
+      "name": "Free-First Zero-Cost Model Router",
+      "latencyMs": 35,
+      "tokens": 30,
+      "costEUR": 0.0,
+      "status": "PASS",
+      "details": "Routed code generation objective to free-tier model (gemini-2.5-flash) with 0.00€ marginal cost."
+    },
+    {
+      "id": "BENCH-05-MCP-AUTHORIZATION",
+      "name": "MCP Deny-By-Default Isolation",
+      "latencyMs": 60,
+      "tokens": 25,
+      "costEUR": 0.0,
+      "status": "PASS",
+      "details": "Denied unauthorized mcp_deployment_arbiter invocation; allowed mcp_filesystem_read with READ grant."
+    }
+  ]
+}
