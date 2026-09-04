@@ -57,12 +57,12 @@ router.get('/missions', async (req: Request, res: Response) => {
 
 router.get('/missions/:id', async (req: Request, res: Response) => {
   try {
-    const mission = await missionRuntime.getMission(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const mission = await missionRuntime.getMission(id);
     if (!mission) {
       return res.status(404).json({ error: 'Mission not found' });
     }
     res.json({ mission });
-    return;
   } catch (error) {
     res.status(500).json({ error: String(error) });
   }
@@ -94,9 +94,9 @@ router.post('/missions', async (req: Request, res: Response) => {
 
 router.post('/missions/:id/start', async (req: Request, res: Response) => {
   try {
-    await missionRuntime.startDiscovery(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    await missionRuntime.startDiscovery(id);
     res.json({ success: true });
-    return;
   } catch (error) {
     res.status(500).json({ error: String(error) });
   }
@@ -108,9 +108,9 @@ router.post('/missions/:id/authorize', async (req: Request, res: Response) => {
     if (!authorizedBy) {
       return res.status(400).json({ error: 'authorizedBy is required' });
     }
-    await missionRuntime.authorizeMission(req.params.id, authorizedBy as string);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    await missionRuntime.authorizeMission(id, authorizedBy as string);
     res.json({ success: true });
-    return;
   } catch (error) {
     res.status(500).json({ error: String(error) });
   }
@@ -180,7 +180,8 @@ router.get('/github/status', async (_req: Request, res: Response) => {
 
 router.post('/github/ingest/:repo', async (req: Request, res: Response) => {
   try {
-    const result = await githubService.ingestRepository(req.params.repo);
+    const repo = Array.isArray(req.params.repo) ? req.params.repo[0] : req.params.repo;
+    const result = await githubService.ingestRepository(repo);
     if (result.success) {
       res.json({ success: true });
     } else {

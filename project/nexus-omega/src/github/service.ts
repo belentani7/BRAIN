@@ -368,7 +368,7 @@ export class GitHubService {
       const latestCommitSha = ref.object.sha;
 
       // Create blobs for each file
-      const treeItems = [];
+      const treeItems = [] as Array<{ path: string; mode: '100644' | '100755' | '040000' | '160000' | '120000'; type: 'blob' | 'tree' | 'commit'; sha: string }>;
       for (const file of files) {
         const { data: blob } = await this.octokit.git.createBlob({
           owner: this.config.owner,
@@ -379,8 +379,8 @@ export class GitHubService {
 
         treeItems.push({
           path: file.path,
-          mode: '100644',
-          type: 'blob',
+          mode: '100644' as const,
+          type: 'blob' as const,
           sha: blob.sha,
         });
       }
