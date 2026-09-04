@@ -1,0 +1,579 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// MISSION LAYER
+// ============================================================================
+
+model Mission {
+  id            String        @id @default(uuid())
+  title         String
+  objective     String
+  description   String?
+  priority      Int           @default(5)
+  status        MissionStatus @default(CREATED)
+  budget        Float?
+  estimatedCost Float?
+  actualCost    Float         @default(0.0)
+  deadline      DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  completedAt   DateTime?
+  failedAt      DateTime?
+  cancelledAt   DateTime?
+
+  // Relationships
+  agents      Agent[]
+  tools       ToolUsage[]
+  checkpoints Checkpoint[]
+  artifacts   Artifact[]
+  auditEvents AuditEvent[]
+
+  // Lineage
+  parentMissionId String?
+  parentMission   Mission?         @relation("MissionHierarchy", fields: [parentMissionId], references: [id])
+  childMissions   Mission[]        @relation("MissionHierarchy")
+  AgentExecution  AgentExecution[]
+  Verification    Verification[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+enum MissionStatus {
+  CREATED
+  DISCOVERING
+  PLANNING
+  AUTHORIZED
+  EXECUTING
+  VERIFYING
+  REPLANNING
+  BLOCKED
+  FAILED
+  COMPLETED
+  CANCELLED
+}
+
+// ============================================================================
+// AGENT RUNTIME
+// ============================================================================
+
+model Agent {
+  id               String      @id @default(uuid())
+  identity         String      @unique
+  role             String
+  capabilities     String // JSON array of capabilities
+  status           AgentStatus @default(IDLE)
+  currentMissionId String?
+  modelProvider    String?
+  modelConfig      String? // JSON config
+  contextLimit     Int         @default(4096)
+  tokenBudget      Float?
+  tokensUsed       Float       @default(0.0)
+  timeout          Int         @default(60000)
+  sandboxEnabled   Boolean     @default(true)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  mission     Mission?         @relation(fields: [currentMissionId], references: [id])
+  executions  AgentExecution[]
+  auditEvents AuditEvent[]
+
+  @@index([status])
+  @@index([currentMissionId])
+}
+
+enum AgentStatus {
+  IDLE
+  SPAWN
+  INITIALIZING
+  CONTEXT_LOADING
+  REASONING
+  REQUESTING_TOOL
+  EXECUTING
+  OBSERVING
+  VERIFYING
+  REPORTING
+  ERROR
+}
+
+model AgentExecution {
+  id          String          @id @default(uuid())
+  agentId     String
+  missionId   String
+  action      String
+  input       String? // JSON
+  output      String? // JSON
+  status      ExecutionStatus @default(PENDING)
+  error       String?
+  startedAt   DateTime        @default(now())
+  completedAt DateTime?
+
+  agent   Agent   @relation(fields: [agentId], references: [id])
+  mission Mission @relation(fields: [missionId], references: [id])
+
+  @@index([agentId])
+  @@index([missionId])
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  TIMEOUT
+}
+
+// ============================================================================
+// TOOL SYSTEM
+// ============================================================================
+
+model Tool {
+  id              String     @id @default(uuid())
+  name            String     @unique
+  version         String     @default("1.0.0")
+  description     String
+  schema          String // JSON Schema
+  permissions     String // JSON array
+  riskLevel       RiskLevel  @default(MEDIUM)
+  timeout         Int        @default(30000)
+  authRequired    Boolean    @default(false)
+  networkRequired Boolean    @default(false)
+  enabled         Boolean    @default(true)
+  policy          ToolPolicy @default(DENY_BY_DEFAULT)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  usages      ToolUsage[]
+  auditEvents AuditEvent[]
+
+  @@index([name])
+  @@index([riskLevel])
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ToolPolicy {
+  ALLOW_BY_DEFAULT
+  DENY_BY_DEFAULT
+  REQUIRE_AUTHORIZATION
+}
+
+model ToolUsage {
+  id           String          @id @default(uuid())
+  toolId       String
+  missionId    String
+  agentId      String?
+  input        String // JSON
+  output       String? // JSON
+  status       ToolUsageStatus @default(PENDING)
+  authorizedBy String?
+  authorizedAt DateTime?
+  executedAt   DateTime        @default(now())
+  duration     Int?
+  cost         Float           @default(0.0)
+  error        String?
+
+  tool    Tool    @relation(fields: [toolId], references: [id])
+  mission Mission @relation(fields: [missionId], references: [id])
+
+  @@index([missionId])
+  @@index([toolId])
+}
+
+enum ToolUsageStatus {
+  PENDING
+  AUTHORIZED
+  DENIED
+  EXECUTING
+  COMPLETED
+  FAILED
+  TIMEOUT
+}
+
+// ============================================================================
+// POLICY & GOVERNANCE
+// ============================================================================
+
+model Policy {
+  id          String         @id @default(uuid())
+  name        String         @unique
+  description String
+  ruleType    PolicyRuleType
+  condition   String // JSON
+  action      PolicyAction
+  priority    Int            @default(0)
+  enabled     Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  evaluations PolicyEvaluation[]
+
+  @@index([ruleType])
+  @@index([enabled])
+}
+
+enum PolicyRuleType {
+  TOOL_ACCESS
+  MODEL_SELECTION
+  COST_LIMIT
+  DATA_ACCESS
+  NETWORK_ACCESS
+  FILE_SYSTEM
+}
+
+enum PolicyAction {
+  ALLOW
+  DENY
+  REQUIRE_APPROVAL
+  LOG_ONLY
+}
+
+model PolicyEvaluation {
+  id              String       @id @default(uuid())
+  policyId        String
+  missionId       String?
+  agentId         String?
+  resourceId      String?
+  resourceType    String
+  requestedAction String
+  result          PolicyResult
+  reason          String?
+  evaluatedAt     DateTime     @default(now())
+
+  policy Policy @relation(fields: [policyId], references: [id])
+
+  @@index([policyId])
+  @@index([missionId])
+}
+
+enum PolicyResult {
+  ALLOWED
+  DENIED
+  PENDING_APPROVAL
+}
+
+// ============================================================================
+// VERIFICATION ENGINE
+// ============================================================================
+
+model Verification {
+  id               String             @id @default(uuid())
+  missionId        String
+  resourceId       String
+  resourceType     String
+  verificationType VerificationType
+  method           String
+  expected         String // JSON
+  actual           String? // JSON
+  status           VerificationStatus @default(PENDING)
+  evidence         String? // JSON
+  error            String?
+  verifiedAt       DateTime?
+  createdAt        DateTime           @default(now())
+
+  mission Mission @relation(fields: [missionId], references: [id])
+
+  @@index([missionId])
+  @@index([status])
+}
+
+enum VerificationType {
+  BUILD
+  TEST
+  API_READ_BACK
+  HEALTH_CHECK
+  HASH_VERIFY
+  ACCEPTANCE_TEST
+}
+
+enum VerificationStatus {
+  PENDING
+  PASSED
+  FAILED
+  SKIPPED
+}
+
+// ============================================================================
+// AUDIT LEDGER (SHA-256 CHAINED)
+// ============================================================================
+
+model AuditEvent {
+  id           String         @id @default(uuid())
+  eventType    AuditEventType
+  actor        String // agent, user, system
+  actorType    ActorType
+  missionId    String?
+  agentId      String?
+  toolId       String?
+  policyId     String?
+  action       String
+  resource     String?
+  inputHash    String?
+  outputHash   String?
+  previousHash String?
+  currentHash  String
+  signature    String?
+  metadata     String? // JSON
+  timestamp    DateTime       @default(now())
+  verified     Boolean        @default(false)
+
+  mission Mission? @relation(fields: [missionId], references: [id])
+  agent   Agent?   @relation(fields: [agentId], references: [id])
+  tool    Tool?    @relation(fields: [toolId], references: [id])
+
+  @@index([timestamp])
+  @@index([missionId])
+  @@index([eventType])
+  @@index([currentHash])
+}
+
+enum AuditEventType {
+  MISSION_CREATED
+  MISSION_STARTED
+  MISSION_PLANNING
+  MISSION_AUTHORIZED
+  MISSION_EXECUTING
+  MISSION_VERIFYING
+  MISSION_COMPLETED
+  MISSION_FAILED
+  MISSION_CANCELLED
+  AGENT_SPAWNED
+  AGENT_ACTION
+  TOOL_REQUESTED
+  TOOL_AUTHORIZED
+  TOOL_DENIED
+  TOOL_EXECUTED
+  TOOL_FAILED
+  POLICY_EVALUATED
+  VERIFICATION_PERFORMED
+  CHECKPOINT_CREATED
+  ARTIFACT_GENERATED
+  ERROR_OCCURRED
+  RETRY_INITIATED
+  SYSTEM_EVENT
+}
+
+enum ActorType {
+  USER
+  AGENT
+  SYSTEM
+  EXTERNAL
+}
+
+// ============================================================================
+// MEMORY & KNOWLEDGE
+// ============================================================================
+
+model Memory {
+  id             String      @id @default(uuid())
+  type           MemoryType
+  scope          MemoryScope
+  key            String
+  value          String // JSON
+  confidence     Float       @default(1.0)
+  provenance     String?
+  missionId      String?
+  agentId        String?
+  accessCount    Int         @default(0)
+  lastAccessedAt DateTime    @default(now())
+  expiresAt      DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([type])
+  @@index([scope])
+  @@index([key])
+  @@index([missionId])
+}
+
+enum MemoryType {
+  SHORT_TERM
+  MISSION_CONTEXT
+  AGENT_STATE
+  PROJECT_KNOWLEDGE
+  LONG_TERM
+  TOOL_RESULT
+  VERIFICATION_RESULT
+}
+
+enum MemoryScope {
+  GLOBAL
+  MISSION
+  AGENT
+  PROJECT
+  USER
+}
+
+// ============================================================================
+// INGESTION & KNOWLEDGE BASE
+// ============================================================================
+
+model IngestedRepository {
+  id            String          @id @default(uuid())
+  owner         String
+  name          String
+  fullName      String          @unique
+  url           String
+  defaultBranch String
+  license       String?
+  language      String?
+  topics        String? // JSON array
+  ingestedAt    DateTime        @default(now())
+  lastSyncedAt  DateTime?
+  commitCount   Int             @default(0)
+  fileCount     Int             @default(0)
+  status        IngestionStatus @default(PENDING)
+  error         String?
+
+  commits IngestedCommit[]
+  files   IngestedFile[]
+
+  @@index([fullName])
+  @@index([status])
+}
+
+enum IngestionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+model IngestedCommit {
+  id            String   @id @default(uuid())
+  repositoryId  String
+  sha           String
+  message       String
+  author        String
+  authorEmail   String?
+  committedAt   DateTime
+  parentShas    String? // JSON array
+  addedFiles    Int      @default(0)
+  modifiedFiles Int      @default(0)
+  deletedFiles  Int      @default(0)
+  ingestedAt    DateTime @default(now())
+
+  repository IngestedRepository @relation(fields: [repositoryId], references: [id])
+  files      IngestedFile[]
+
+  @@unique([repositoryId, sha])
+  @@index([repositoryId])
+}
+
+model IngestedFile {
+  id           String   @id @default(uuid())
+  repositoryId String
+  commitId     String?
+  path         String
+  content      String?
+  contentHash  String
+  size         Int
+  language     String?
+  chunks       String? // JSON - chunk references
+  embeddings   String? // JSON - embedding references
+  ingestedAt   DateTime @default(now())
+
+  repository IngestedRepository @relation(fields: [repositoryId], references: [id])
+  commit     IngestedCommit?    @relation(fields: [commitId], references: [id])
+
+  @@unique([repositoryId, path, contentHash])
+  @@index([repositoryId])
+  @@index([contentHash])
+}
+
+// ============================================================================
+// CHECKPOINTS & ARTIFACTS
+// ============================================================================
+
+model Checkpoint {
+  id          String   @id @default(uuid())
+  missionId   String
+  state       String // JSON - full mission state
+  reason      String?
+  recoverable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  mission Mission @relation(fields: [missionId], references: [id])
+
+  @@index([missionId])
+}
+
+model Artifact {
+  id          String   @id @default(uuid())
+  missionId   String
+  name        String
+  type        String
+  path        String?
+  content     String? // JSON or text
+  contentHash String?
+  size        Int?
+  mimeType    String?
+  createdAt   DateTime @default(now())
+
+  mission Mission @relation(fields: [missionId], references: [id])
+
+  @@index([missionId])
+}
+
+// ============================================================================
+// OBSERVABILITY
+// ============================================================================
+
+model Metric {
+  id        String   @id @default(uuid())
+  name      String
+  value     Float
+  unit      String?
+  tags      String? // JSON
+  timestamp DateTime @default(now())
+
+  @@index([name])
+  @@index([timestamp])
+}
+
+model Trace {
+  id         String     @id @default(uuid())
+  traceId    String
+  parentId   String?
+  name       String
+  kind       SpanKind
+  startTime  DateTime
+  endTime    DateTime?
+  duration   Int?
+  status     SpanStatus @default(UNSET)
+  attributes String? // JSON
+  events     String? // JSON
+  missionId  String?
+  agentId    String?
+
+  @@index([traceId])
+  @@index([missionId])
+}
+
+enum SpanKind {
+  INTERNAL
+  SERVER
+  CLIENT
+  PRODUCER
+  CONSUMER
+}
+
+enum SpanStatus {
+  UNSET
+  OK
+  ERROR
+}
