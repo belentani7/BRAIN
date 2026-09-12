@@ -14,4 +14,14 @@ jobs:
         with:
           node-version: 20
       - run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
-      - run: npm run build --if-present
+      - name: detect build script
+        id: buildscript
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.build ? 0 : 1)"; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No build script declared in package.json."
+          fi
+      - if: steps.buildscript.outputs.present == 'true'
+        run: npm run build
