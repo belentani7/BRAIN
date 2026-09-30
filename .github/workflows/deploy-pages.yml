@@ -1,0 +1,57 @@
+# Compila la aplicacion y la publica en GitHub Pages.
+#
+# POR QUE HACE FALTA: el repositorio contiene codigo fuente (src/main.tsx),
+# no la version compilada. Si Pages sirve la raiz tal cual, el navegador
+# intenta ejecutar TypeScript y la pagina sale EN BLANCO.
+# Este workflow compila primero con Vite y publica solo el resultado (dist/).
+#
+# Requisito (una vez): Settings - Pages - Source - "GitHub Actions".
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Una sola publicacion a la vez. Si llegan dos pushes seguidos,
+# cancela el primero: solo importa el ultimo estado.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # --legacy-peer-deps: varios proyectos arrastran peers de React 19
+      # que npm rechaza por defecto. Sin esto el install falla.
+      - run: npm install --no-audit --no-fund --legacy-peer-deps
+      # --base=./ hace que los enlaces funcionen bajo /nombre-repo/
+      # en vez de la raiz del dominio.
+      - run: npx vite build --base=./
+      # Copia el index como 404 para que las rutas internas
+      # (React Router) no den error al recargar.
+      - name: Fallback para rutas SPA
+        run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
